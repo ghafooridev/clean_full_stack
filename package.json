@@ -1,0 +1,16 @@
+{
+  "name": "clean_todo",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev --prefix express_app\" \"npm run dev --prefix react_todo\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

@@ -1,0 +1,31 @@
+
+/*
+What matters here?
+- strict: true enables stronger type checking.
+- rootDir tells TypeScript where our source code lives.
+- outDir tells TypeScript where compiled JavaScript goes.
+- NodeNext aligns module resolution with Node.js.
+- noImplicitOverride helps catch mistakes when overriding class methods.
+- noImplicitReturns helps catch functions that accidentally fail to return a value.
+Because we're using NodeNext, we'll use .js extensions in relative imports inside our TypeScript files. TypeScript resolves these to the corresponding .ts files while compiling.
+*/
+
+
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
