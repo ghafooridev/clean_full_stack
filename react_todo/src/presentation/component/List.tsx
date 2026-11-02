@@ -1,19 +1,23 @@
+import { redirect } from "react-router";
 import type { Todo } from "../../domain/entity/todo";
-import { useReactQuery } from "../../infra/react-query";
-import { TodoService } from "../service/Todo.service";
+import { useGetTodos } from "../hooks/useGetTodo";
 
 export default function TodoList() {
-  const {data,isLoading,isError}=useReactQuery<Todo>(['todo'],()=>TodoService.getAll())
-  console.log(data,isError,isLoading);
-  
-  if(isLoading) return <div>is loading...</div>
-  if(isError) return <div>error...</div>
+  const { data, isLoading, isError } = useGetTodos()
+
+  if (isLoading) return <div>is loading...</div>
+  if (isError) return <div>error...</div>
   return (
     <div className="App">
       <h1>React Todo list</h1>
       {
-        data?.map((item:Todo)=>{
-          return <div>{item.title}</div>
+        data?.map((item: Todo) => {
+          return <div>
+            <p>{item.title}</p>
+            <input type="checkbox" defaultChecked={item.completed} />
+            <input type="button" onClick={() => redirect(`/todo/${item.id}`)}>detail</input>
+
+          </div>
         })
       }
     </div>

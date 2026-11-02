@@ -1,10 +1,10 @@
-import TodoView from "./presentation/view/Todo.view";
+import { Router } from "./router";
 
 export default function App() {
-  
+
   return (
     <div className="App">
-      <TodoView/>
+      <Router />
     </div>
   )
 }

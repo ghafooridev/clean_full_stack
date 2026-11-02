@@ -1,5 +1,5 @@
-import { TodoEmptyTitleError } from "../error/TodoEmptyTitleError";
-import { TodoNotFoundError } from "../error/TodoNotFoundError";
+// import { TodoEmptyTitleError } from "../error/TodoEmptyTitleError";
+// import { TodoNotFoundError } from "../error/TodoNotFoundError";
 
 export class Todo {
     public readonly id: string;
@@ -18,17 +18,17 @@ export class Todo {
         return this._compelete
     }
 
-    public changeTitle(title: string): void {
-        if (!title) {
-            throw new TodoNotFoundError();
-        }
-        if (title.trim() === "") {
-            throw new TodoEmptyTitleError()
-        }
-        this._title = title
-    }
+    // public changeTitle(title: string): void {
+    //     if (!title) {
+    //         throw new TodoNotFoundError();
+    //     }
+    //     if (title.trim() === "") {
+    //         throw new TodoEmptyTitleError()
+    //     }
+    //     this._title = title
+    // }
 
-    public complete(): void {
-        this._compelete = true
-    }
+    // public complete(): void {
+    //     this._compelete = true
+    // }
 }
