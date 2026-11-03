@@ -1,15 +1,14 @@
 import { createContext, useContext } from "react"
-import type { GetAllTodo } from "../../application/use-case/getAllTodo"
+import type { CreateTodo, DeleteTodo, GetAllTodo, GetTodoById, UpdateTodo } from "../../application/use-case/TodoUsecase"
 
 
 
 type TodoUseCases = {
-    listTodos: GetAllTodo
+    getAllTodos: GetAllTodo
     createTodo: CreateTodo
     updateTodo: UpdateTodo
     deleteTodo: DeleteTodo
     getTodoById: GetTodoById
-    getTodoCount: GetTodoCount
 }
 const TodoUseCasesContext = createContext<TodoUseCases | null>(null)
 
@@ -28,7 +27,31 @@ export function TodoUseCasesProvider({
 }
 
 export function useTodoUseCases() {
-    const listTodos = useContext(TodoUseCasesContext)
-    if (!listTodos) throw new Error("TodoUseCasesProvider is missing")
-    return listTodos
+    const getAllTodos = useContext(TodoUseCasesContext)
+    if (!getAllTodos) throw new Error("TodoUseCasesProvider is missing")
+    return getAllTodos
+}
+
+export function useCreateTodo() {
+    const createTodo = useContext(TodoUseCasesContext)
+    if (!createTodo) throw new Error("TodoUseCasesProvider is missing")
+    return createTodo.createTodo
+}
+
+export function useGetTodoById() {
+    const getTodoById = useContext(TodoUseCasesContext)
+    if (!getTodoById) throw new Error("TodoUseCasesProvider is missing")
+    return getTodoById.getTodoById
+}
+
+export function useUpdateTodo() {
+    const updateTodo = useContext(TodoUseCasesContext)
+    if (!updateTodo) throw new Error("TodoUseCasesProvider is missing")
+    return updateTodo.updateTodo
+}
+
+export function useDeleteTodo() {
+    const deleteTodo = useContext(TodoUseCasesContext)
+    if (!deleteTodo) throw new Error("TodoUseCasesProvider is missing")
+    return deleteTodo.deleteTodo
 }

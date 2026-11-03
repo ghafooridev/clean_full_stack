@@ -16,6 +16,6 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', message: 'server is running' });
 });
 
-app.use('/todo', todoRoutes);
+app.use('/todos', todoRoutes);
 
 export default app;

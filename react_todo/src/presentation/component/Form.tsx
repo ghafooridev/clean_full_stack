@@ -1,9 +1,9 @@
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form";
-import { useReactMutation } from "../../infra/react-query";
-import { TodoService } from "../service/Todo.service";
 import { useTodoContext } from "../context";
+import { useCreateTodo } from "../context/TodoUsecases";
+import { useCreateTodoMutation } from "../hooks/useGetTodo";
 
 export default function TodoForm() {
   const { setCompleteTodos, completeTodos } = useTodoContext()
@@ -24,15 +24,10 @@ export default function TodoForm() {
       id: ""
     }
   })
-  const createTodo = useReactMutation(["todos"], (data: FormData) => TodoService.create(data as any), {
-    onSuccess: () => {
-      alert("Todo created successfully")
-      setCompleteTodos(completeTodos + 1)
-    }
-  })
+  const { mutate } = useCreateTodoMutation()
 
   const onSubmit = (data: FormData) => {
-    createTodo.mutate(data)
+    mutate(data)
   }
 
   return (

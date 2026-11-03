@@ -3,25 +3,25 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TodoProvider } from './presentation/context/index.tsx';
-import { TodoHttpRepository } from './infra/repository/TodoHttpRepository.ts';
-import { GetAllTodo } from './application/use-case/getAllTodo.ts';
-import { http } from './infra/axios/index.ts';
+import { CreateTodo, GetAllTodo, GetTodoById, UpdateTodo } from './application/use-case/TodoUsecase.ts';
+import { DeleteTodo } from './application/use-case/TodoUsecase.ts';
 import { TodoUseCasesProvider } from './presentation/context/TodoUsecases.tsx';
+import { TodoHttpRepository } from './infra/repository/TodoHttpRepository.ts';
 
-const repository = new TodoHttpRepository(http)
-const listTodos = new GetAllTodo(repository)
+const repository = new TodoHttpRepository()
+
+const getAllTodos = new GetAllTodo(repository)
 const createTodo = new CreateTodo(repository)
 const updateTodo = new UpdateTodo(repository)
 const deleteTodo = new DeleteTodo(repository)
 const getTodoById = new GetTodoById(repository)
-const getTodoCount = new GetTodoCount(repository)
+
 const useCases = {
-  listTodos,
+  getAllTodos,
   createTodo,
   updateTodo,
   deleteTodo,
   getTodoById,
-  getTodoCount
 }
 const client = new QueryClient()
 

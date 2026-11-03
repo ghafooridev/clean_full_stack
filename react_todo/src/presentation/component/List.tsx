@@ -1,9 +1,9 @@
 import { redirect } from "react-router";
 import type { Todo } from "../../domain/entity/todo";
-import { useGetTodos } from "../hooks/useGetTodo";
+import { useGetTodosQuery } from "../hooks/useGetTodo";
 
 export default function TodoList() {
-  const { data, isLoading, isError } = useGetTodos()
+  const { data, isLoading, isError } = useGetTodosQuery()
 
   if (isLoading) return <div>is loading...</div>
   if (isError) return <div>error...</div>

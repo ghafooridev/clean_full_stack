@@ -11,5 +11,17 @@ export class TodoHttpRepository implements TodoRepository {
     findAll(): Promise<Todo[]> {
         return this.http.get('/todos')
     }
+    findById(id: string): Promise<Todo> {
+        return this.http.get(`/todos/${id}`)
+    }
+    create(todo: Todo): Promise<Todo> {
+        return this.http.post('/todos', todo)
+    }
+    update(todo: Todo): Promise<Todo> {
+        return this.http.put(`/todos/${todo.id}`, todo)
+    }
+    delete(id: string): Promise<void> {
+        return this.http.delete(`/todos/${id}`)
+    }
 
 }       
