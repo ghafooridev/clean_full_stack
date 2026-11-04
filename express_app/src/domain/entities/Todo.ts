@@ -7,7 +7,7 @@ export class Todo {
         private _title: string,
         private _completed: boolean = false
     ) {
-        if (_title.trim() === '') {
+        if (typeof _title !== "string" || _title.trim().length < 10) {
             throw new TodoEmptyTitleError();
         }
         this._title = _title.trim();
@@ -28,6 +28,9 @@ export class Todo {
         if (newTitle.trim() === '') {
             // throw new Error('Title cannot be empty');
             throw new TodoEmptyTitleError()
+        }
+        if (newTitle.trim().length < 10) {
+            throw new TodoEmptyTitleError();
         }
         this._title = newTitle.trim();
     }
