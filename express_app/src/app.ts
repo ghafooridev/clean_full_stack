@@ -3,11 +3,7 @@ import cors from 'cors';
 import todoRoutes from "./presentation/http/routes/TodoRoutes";
 
 const app = express();
-app.use(
-    cors({
-        origin: ['http://localhost:5173','http://localhost:4173'],
-    }),
-);
+app.use(cors());
 
 app.use(express.json());
 

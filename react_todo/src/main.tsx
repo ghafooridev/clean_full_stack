@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
+import "./style.css"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TodoProvider } from './presentation/context/index.tsx';
 import { CreateTodo, GetAllTodo, GetTodoById, UpdateTodo } from './application/use-case/TodoUsecase.ts';
@@ -40,7 +41,7 @@ createRoot(document.getElementById('root')!).render(
 if('serviceWorker' in navigator) {
   window.addEventListener('load', async() => {
     try {
-      const registration=await navigator.serviceWorker.register('/sw.js')
+      const registration=await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
       console.log('Service worker registered', registration)
       console.log('Service worker scope', registration.scope)
     } catch (error) {

@@ -2,8 +2,12 @@ import { createBrowserRouter, Outlet } from "react-router"
 import { RouterProvider } from "react-router/dom"
 import TodoList from "./presentation/component/List";
 import TodoForm from "./presentation/component/Form";
+import logo from "./assets/images.jpeg";
 
-const Home = () => <div>Home</div>
+const Home = () => <div><img src={logo} alt="logo" />Home
+
+<img src="/logo.jpeg" alt="logo" />
+</div>
 const TodoLayout = () => <Outlet />
 
 const router = createBrowserRouter([

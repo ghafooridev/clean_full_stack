@@ -5,7 +5,6 @@ import { useGetTodosQuery } from "../hooks/useGetTodo";
 export default function TodoList() {
   const navigate = useNavigate()
   const { data, isLoading, isError } = useGetTodosQuery()
-
   if (isLoading) return <div>is loading...</div>
   if (isError) return <div>error...</div>
   return (
