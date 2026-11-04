@@ -1,6 +1,7 @@
 import { http } from "../../infra/axios/index.ts"
 import type { TodoRepository } from "../../application/port/TodoRepository"
 import type { Todo } from "../../domain/entity/todo"
+import { toDto, toTodo, type TodoDto } from "../mapper/index.ts"
 
 export class TodoHttpRepository implements TodoRepository {
     private readonly http: typeof http
@@ -8,20 +9,24 @@ export class TodoHttpRepository implements TodoRepository {
         this.http = http
     }
 
-    findAll(): Promise<Todo[]> {
-        return this.http.get('/todos')
+    async findAll(): Promise<Todo[]> {
+        const response = await this.http.get<TodoDto[]>('/todos')
+        return response.data.map(toTodo)
     }
-    findById(id: string): Promise<Todo> {
-        return this.http.get(`/todos/${id}`)
+    async findById(id: string): Promise<Todo> {
+        const response = await this.http.get<TodoDto>(`/todos/${id}`)
+        return toTodo(response.data)
     }
-    create(todo: Todo): Promise<Todo> {
-        return this.http.post('/todos', todo)
+    async create(todo: Todo): Promise<Todo> {
+        const response = await this.http.post<TodoDto>('/todos', toDto(todo))
+        return toTodo(response.data)
     }
-    update(todo: Todo): Promise<Todo> {
-        return this.http.put(`/todos/${todo.id}`, todo)
+    async update(todo: Todo): Promise<Todo> {
+        const response = await this.http.put<TodoDto>(`/todos/${todo.id}`, toDto(todo))
+        return toTodo(response.data)
     }
-    delete(id: string): Promise<void> {
-        return this.http.delete(`/todos/${id}`)
+    async delete(id: string): Promise<void> {
+        await this.http.delete(`/todos/${id}`)
     }
 
 }       

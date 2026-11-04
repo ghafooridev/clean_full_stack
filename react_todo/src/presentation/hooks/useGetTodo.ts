@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useTodoUseCases } from "../context/TodoUsecases"
-import { Todo } from "../../domain/entity/todo"
+import { type TodoDto, toTodo } from "../../infra/mapper"
 
 export const useGetTodosQuery = () => {
     const getAllTodos = useTodoUseCases()
@@ -12,15 +12,15 @@ export const useGetTodosQuery = () => {
 }
 export const useCreateTodoMutation = () => {
     const createTodo = useTodoUseCases()
-    const { mutate, isError } = useMutation({
-        mutationFn: (todo: Todo) => createTodo.createTodo.execute(todo)
+    const { mutate, isError, isPending } = useMutation({
+        mutationFn: (todo: TodoDto) => createTodo.createTodo.execute(toTodo(todo))
     })
-    return { mutate, isError }
+    return { mutate, isError, isPending }
 }
 export const useUpdateTodoMutation = () => {
     const updateTodo = useTodoUseCases()
     const { mutate, isError } = useMutation({
-        mutationFn: (todo: Todo) => updateTodo.updateTodo.execute(todo)
+        mutationFn: (todo: TodoDto) => updateTodo.updateTodo.execute(toTodo(todo))
     })
     return { mutate, isError }
 }

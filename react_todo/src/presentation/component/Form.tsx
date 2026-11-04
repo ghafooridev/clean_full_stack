@@ -1,15 +1,14 @@
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form";
-import { useTodoContext } from "../context";
-import { useCreateTodo } from "../context/TodoUsecases";
 import { useCreateTodoMutation } from "../hooks/useGetTodo";
+import { useNavigate } from "react-router";
 
 export default function TodoForm() {
-  const { setCompleteTodos, completeTodos } = useTodoContext()
+  const navigate = useNavigate()
   const schema = z.object({
     id: z.string(),
-    title: z.string().refine((value) => value.trim().length <= 10, {
+    title: z.string().refine((value) => value.trim().length >= 10, {
       message: "Title must be less than 10 characters",
     }),
     completed: z.boolean()
@@ -24,10 +23,12 @@ export default function TodoForm() {
       id: ""
     }
   })
-  const { mutate } = useCreateTodoMutation()
+  const { mutate, isPending } = useCreateTodoMutation()
 
-  const onSubmit = (data: FormData) => {
-    mutate(data)
+  const onSubmit = async (data: FormData) => {
+    console.log(data)
+    await mutate(data)
+    navigate("/todo/list")
   }
 
   return (
@@ -37,7 +38,7 @@ export default function TodoForm() {
         <input type="hidden" {...register('id')} />
         <input type='text' {...register('title')} placeholder="Enter title" />
         <input type="checkbox" {...register('completed')} />
-        <input type="submit" value="Add Todo" />
+        <input type="submit" value={isPending ? "Adding..." : "Add Todo"} disabled={isPending} />
         {errors.title && <p>{errors.title.message}</p>}
         {errors.completed && <p>{errors.completed.message}</p>}
       </form>

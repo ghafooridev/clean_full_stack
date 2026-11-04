@@ -1,8 +1,9 @@
-import { redirect } from "react-router";
+import { useNavigate } from "react-router";
 import type { Todo } from "../../domain/entity/todo";
 import { useGetTodosQuery } from "../hooks/useGetTodo";
 
 export default function TodoList() {
+  const navigate = useNavigate()
   const { data, isLoading, isError } = useGetTodosQuery()
 
   if (isLoading) return <div>is loading...</div>
@@ -10,13 +11,13 @@ export default function TodoList() {
   return (
     <div className="App">
       <h1>React Todo list</h1>
+      <button type="button" onClick={() => navigate("/todo/form")}>new</button>
       {
         data?.map((item: Todo) => {
-          return <div>
+          return <div key={item.id}>
             <p>{item.title}</p>
             <input type="checkbox" defaultChecked={item.completed} />
-            <input type="button" onClick={() => redirect(`/todo/${item.id}`)}>detail</input>
-
+            <button type="button" onClick={() => navigate(`/todo/${item.id}`)}>detail</button>
           </div>
         })
       }

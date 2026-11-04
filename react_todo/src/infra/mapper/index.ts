@@ -9,3 +9,11 @@ export type TodoDto = {
 export function toTodo(dto: TodoDto): Todo {
     return new Todo(dto.id, dto.title, dto.completed)
 }
+
+export function toDto(todo: Todo): TodoDto {
+    return {
+        id: todo.id,
+        title: todo.title,
+        completed: todo.completed,
+    }
+}
