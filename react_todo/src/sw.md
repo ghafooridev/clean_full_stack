@@ -2,16 +2,18 @@
 
 The service worker is a small script the browser keeps running next to the page. After it has saved the page files, the app can still open when the network is off.
 
-The script you edit is `react_todo/public/sw.js`.
-The page turns it on in `react_todo/src/main.tsx`.
+| File | Role |
+| --- | --- |
+| `react_todo/public/sw.js` | The worker you edit. |
+| `react_todo/src/main.tsx` | Registers `/sw.js` after the page loads. |
+| `react_todo/dist/sw.js` | The copy the preview server actually sends. `npm run build` creates it. |
 
-`npm run build` copies `public/sw.js` into `dist/sw.js`.
-`npm run preview` serves that `dist` folder (usually `http://localhost:4173`).
-The worker does not run on `npm run dev` the same way, because the dev server is not the built app.
+`npm run preview` serves `dist/` (usually `http://localhost:4173`).
+Use that URL to test offline. `npm run dev` (`http://localhost:5173`) is a different server. The worker is not meant for that.
 
-## How it starts
+You still need **one reload while online** after changing `sw.js`, so the browser can install the new file.
 
-In `main.tsx` the page waits until it has loaded, then calls:
+## How the page turns it on
 
 ```js
 navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
@@ -28,7 +30,20 @@ The browser then runs three steps:
 `skipWaiting()` makes the new worker take over immediately.
 `clients.claim()` makes it control the tab that is already open.
 
-You still need **one reload while online** after changing `sw.js`, so the browser can install the new file.
+## Why the first visit is special
+
+This is the most important idea in this file.
+
+A service worker **does not control the page that registered it** until it has installed (and, here, claimed the tab). Timeline of the first visit:
+
+1. The browser asks for `/todo` or `/todo/list`.
+2. It downloads `index.html`, then the JS and CSS linked in that HTML, then `GET http://localhost:4000/todos`.
+3. React starts. `main.tsx` registers `/sw.js`.
+4. Only now does **install** run.
+
+So the first HTML, JS, CSS, image, and todo-list requests happen **before** the `fetch` event can see them. The `fetch` handler cannot be the only way those files get cached. Install must download them itself. That is why `precache` exists, why we read `index.html`, and why `/todos` is listed in `PRECACHED_API`.
+
+After install + `skipWaiting` + `clients.claim`, later requests (and the next reload) go through `fetch`.
 
 ## The settings at the top of `sw.js`
 
@@ -38,90 +53,249 @@ const API_CACHE = "react-todo-api-v3";
 const API_ORIGIN = "http://localhost:4000";
 const APP_SHELL_FILES = ["/", "/index.html", "/favicon.svg", "/icons.svg"];
 const PRECACHED_API = ["/todos"];
-const matchOptions = { ignoreVary: true, ignoreSearch: true };
+const MATCH = { ignoreVary: true, ignoreSearch: true };
 ```
 
 | Name | What it means |
 | --- | --- |
-| `STATIC_CACHE` | Name of the box that stores the page: HTML, JS, CSS, images, icons. |
-| `API_CACHE` | Name of the box that stores API answers, such as the todo list. |
-| `API_ORIGIN` | The API address. Only requests to this host are treated as API calls. |
-| `APP_SHELL_FILES` | Files saved first, before we read `index.html`. |
-| `PRECACHED_API` | API paths saved during install, even if the page has not asked for them yet. |
-| `ignoreVary` | Still use a saved file when the `Origin` header is different. Vite and Express send `Vary: Origin`. |
-| `ignoreSearch` | `?something=1` on the URL does not stop a cache hit. |
+| `STATIC_CACHE` | Box for the page: HTML, JS, CSS, images, icons. |
+| `API_CACHE` | Box for API JSON, such as the todo list. |
+| `API_ORIGIN` | Only requests to this host are treated as API calls. |
+| `APP_SHELL_FILES` | Files saved first. Their names never change. |
+| `PRECACHED_API` | API paths saved during install, even if the page has not asked yet. |
+| `MATCH.ignoreVary` | Still use a saved file when the `Origin` header is different. |
+| `MATCH.ignoreSearch` | `?something=1` on the URL does not stop a cache hit. |
 
-The `v3` part is just a version label. It is not a special browser feature.
+The `v3` part is only a label. When you bump it to `v4`, activate deletes the old boxes.
 
-## Two caches
+They are two boxes so a new page build does not wipe the saved todo list, and a new API cache does not wipe the page files.
 
-- **Static cache** holds the app shell: the page, the JavaScript bundle, the CSS file, images, and icons.
-- **API cache** holds JSON from `http://localhost:4000`, starting with `/todos`.
+`APP_SHELL_FILES` does **not** list JS or CSS. Those names change on every Vite build. See the next section.
 
-They are separate so a new page build does not wipe the saved todo list, and a new API cache does not wipe the page files. On activate, any cache whose name is not in the `keep` list is deleted.
+## Why we read `index.html` during install
 
-## What gets saved on install
+This is the block in `install`:
 
-`precacheAppShell` does this:
+```js
+const index = await pages.match("/index.html", MATCH);
+if (index) {
+  const assets = [...(await index.text()).matchAll(/(?:src|href)="(\/[^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  await precache(pages, assets);
+}
+```
 
-1. Download `/`, `/index.html`, `/favicon.svg`, and `/icons.svg`.
-2. Read the HTML.
-3. Find every `src="..."` and `href="..."` that starts with `/`.
-4. Download those files too.
+**Do not delete this.** Without it, offline mode loads HTML and then a blank, unstyled page.
 
-That is how the real built files get cached, for example:
+After `npm run build`, `dist/index.html` looks like:
 
-- `/assets/index-CgR7scPo.js`
-- `/assets/index-kyH9Vy4I.css`
-- `/assets/images-DbpGPTUr.jpeg` only if the HTML links it directly
+```html
+<script type="module" crossorigin src="/assets/index-CgR7scPo.js"></script>
+<link rel="stylesheet" crossorigin href="/assets/index-kyH9Vy4I.css">
+```
 
-CSS and images that Vite puts **inside** the JavaScript are requested when the page runs. The `fetch` handler saves them the first time they load online. They are not named `/style.css`. `src/style.css` becomes a hashed file under `/assets/`.
+Vite adds a hash (`CgR7scPo`, `kyH9Vy4I`) so a new build gets a new filename. You cannot put `/src/style.css` or `/assets/index-CgR7scPo.js` in `APP_SHELL_FILES`:
 
-`precacheApi` downloads each path in `PRECACHED_API` and stores the JSON. This matters because the first visit asks for `/todos` **before** the worker is in control, so that first request would otherwise never be saved.
+- `/style.css` is not a URL the built page loads. `src/style.css` is compiled into `/assets/index-….css`.
+- `/assets/index-CgR7scPo.js` will be wrong after the next build.
 
-`fetchFresh` adds `?sw-precache=<time>` so install does not reuse an old cached `index.html` that is missing the new CSS or JS link. The saved key is still the clean URL, without that query.
+So install:
 
-## Why copies of responses are stored
+1. Saves `APP_SHELL_FILES` (stable names).
+2. Reads the saved `index.html`.
+3. Collects every `src="..."` and `href="..."` that starts with `/`.
+4. Precaches those hashed files (JS, CSS, and any image linked from the HTML).
 
-`corsCopy` saves a copy that:
+The regex `/(?:src|href)="(\/[^"]+)"/g` means: find `src="` or `href="`, then capture a path that starts with `/`.
 
-- removes the `Vary` header
-- sets `Access-Control-Allow-Origin` to this site
+What this does **not** catch:
 
-The built page loads JS and CSS with `crossorigin`. If the saved file does not allow this origin, the browser refuses to use it and the offline page stays blank or unstyled.
+- Images imported in React (`src/assets/images.jpeg`) if they are only referenced from JS, not from `index.html`. Those are requested when the page runs. The `fetch` handler saves them the first time they load **while the worker is in control**. After the first controlled visit, they work offline.
+- `/todos` JSON. That is a different origin (`localhost:4000`), so it is handled by `PRECACHED_API`.
 
-Only successful responses (`response.ok`) are stored.
+## Why `save` rewrites headers
 
-## What happens on each request
+Vite preview and Express send `Vary: Origin`.
+The built JS and CSS tags include `crossorigin`, so the browser sends an `Origin` header.
 
-Only `GET` requests are handled.
+If we stored the raw response:
 
-| Request | Strategy | Offline behavior |
+- `cache.match` can miss because of `Vary: Origin`.
+- The browser can refuse the saved JS/CSS (no `Access-Control-Allow-Origin`), and the offline page stays blank or unstyled.
+
+`save` only stores OK responses, strips `Vary`, and sets `Access-Control-Allow-Origin` to this site. `MATCH` also uses `ignoreVary` and `ignoreSearch` as a second safety net.
+
+## Functions in `sw.js`
+
+Five helpers, then three browser events. Cache reads use `cache.match(..., MATCH)` directly.
+
+### `save(cache, key, response)`
+
+Puts one successful response into a cache.
+
+- `cache` — an open Cache box.
+- `key` — URL string (such as `/index.html`) or a `Request`.
+- `response` — the network result.
+
+Steps:
+
+1. If `response.ok` is false (not status 200–299), store nothing.
+2. Copy headers, delete `Vary`, set `Access-Control-Allow-Origin`.
+3. Store a new `Response` whose body is `response.blob()`.
+
+Used by `precache`, `networkFirst`, and `cacheFirst`.
+
+### `precache(cache, urls)`
+
+Downloads a list of URLs and saves each one.
+
+- `cache` — an open Cache box.
+- `urls` — URL strings.
+
+For each URL: `fetch(url)`, then `save`. If one file fails, it logs `sw precache skipped` and continues. One missing icon does not stop install.
+
+Used three times in `install`: app shell, hashed assets from HTML, API list.
+
+There is no extra `?sw-precache=` query. Vite preview already sends `Cache-Control: no-cache`.
+
+### `networkFirst(cacheName, request, storeKey = request)`
+
+Try the internet first. If that fails, use the cache.
+
+- `cacheName` — `STATIC_CACHE` or `API_CACHE`.
+- `request` — what to send to the network.
+- `storeKey` — where to save and look up. Defaults to `request`. Navigation passes `"/index.html"` so `/todo` and `/todo/list` share one saved page.
+
+Steps:
+
+1. Open the cache and `match` `storeKey` with `MATCH`.
+2. `fetch(request)`.
+3. On success, `save` a clone under `storeKey` and return the live response.
+4. On failure (offline), return the saved copy, or `Response.error()` if nothing was saved.
+
+Used for API requests and by `navigate`. `Response.error()` is a failed response (`ok` is false). It does not throw, so the console does not show an uncaught `Failed to fetch` from the worker.
+
+### `cacheFirst(request)`
+
+Use the cache immediately. If nothing is saved, try the network and then save.
+
+- `request` — JS, CSS, image, or icon.
+
+Steps:
+
+1. Open `STATIC_CACHE` and `match` the request.
+2. If found, return it.
+3. Otherwise `fetch`, `save` a clone, and return the live response.
+4. If fetch fails too, return `Response.error()`.
+
+Used for same-origin files that are not page navigations.
+
+### `navigate(request)`
+
+Open any app URL (`/todo`, `/todo/list`, …) from one saved HTML file.
+
+1. `networkFirst(STATIC_CACHE, request, "/index.html")`.
+2. If that response is OK, return it.
+3. Otherwise try `/` in the static cache.
+4. If that is also missing, return the failed page from step 1.
+
+`/todo` is not a real file. Vite always returns `index.html`. One saved copy is enough. React Router then shows Home or the list.
+
+### `install` event
+
+Runs once when a new `sw.js` is downloaded.
+
+`event.waitUntil(...)` tells the browser to wait until saving is finished.
+
+```js
+const pages = await caches.open(STATIC_CACHE);
+await precache(pages, APP_SHELL_FILES);
+
+const index = await pages.match("/index.html", MATCH);
+if (index) {
+  const assets = [...(await index.text()).matchAll(/(?:src|href)="(\/[^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  await precache(pages, assets);
+}
+
+await precache(
+  await caches.open(API_CACHE),
+  PRECACHED_API.map((path) => API_ORIGIN + path),
+);
+await self.skipWaiting();
+```
+
+| Step | Why |
+| --- | --- |
+| `precache(APP_SHELL_FILES)` | Stable files: `/`, `/index.html`, icons. |
+| Read `index.html` and precache `src` / `href` | Hashed JS and CSS. Cannot be listed by hand. First visit does not go through `fetch`. |
+| `precache` `/todos` | Same first-visit problem, other origin. |
+| `skipWaiting()` | Activate now, do not wait for old tabs to close. |
+
+If you skip the HTML-parsing step, Cache Storage will have `index.html` but not `index-….js` / `index-….css`. Offline you get a white page.
+
+If you skip `PRECACHED_API`, the page shell can load and then show **error...** because `/todos` was never stored.
+
+### `activate` event
+
+Runs after install, when this worker becomes the one in charge.
+
+1. `caches.keys()` lists every cache name.
+2. Deletes every name that is not `STATIC_CACHE` or `API_CACHE` (old `v1` / `v2`, leftover boxes).
+3. `self.clients.claim()` takes over the current tab.
+
+### `fetch` event
+
+Runs on every request from a page this worker controls. Only `GET` is handled. `POST`, `PUT`, and `DELETE` go to the network, so creating or editing a todo still needs the API.
+
+The handler only chooses which helper to call:
+
+```js
+if (url.origin === API_ORIGIN) {
+  event.respondWith(networkFirst(API_CACHE, request));
+} else if (url.origin === self.location.origin) {
+  event.respondWith(
+    request.mode === "navigate" ? navigate(request) : cacheFirst(request),
+  );
+}
+```
+
+| Condition | Helper | Offline |
 | --- | --- | --- |
-| `http://localhost:4000/...` | Network first | Use the saved JSON if the network fails. |
-| Opening a page (`/todo`, `/todo/list`, …) | Network first, stored as `/index.html` | Serve the saved `index.html` so the React app can start. |
-| JS, CSS, images, icons | Cache first | Use the saved file. If it was never saved, try the network and then save it. |
+| `url.origin === API_ORIGIN` | `networkFirst` | Saved JSON, if install or an earlier visit stored it. |
+| Other websites | (do nothing) | Browser default. |
+| `request.mode === "navigate"` | `navigate` | React starts from the saved HTML. |
+| Same-origin JS, CSS, images, icons | `cacheFirst` | Saved file. If it was never saved, the request fails. |
 
-Network first means: try the internet, and if that works, replace the saved copy. If the internet fails, use what was saved before.
+**Why cache-first for JS/CSS:** a new build gets a new hashed name. The old file in the cache is unused, not stale content under the same URL.
 
-Cache first means: use the saved file immediately. This is right for files whose names change when the content changes (`index-AbCd123.js`).
+**Why network-first for the API:** the todo list can change. Prefer a fresh list when online; use yesterday's list when offline.
 
-`POST`, `PUT`, and `DELETE` are not cached. Creating or editing a todo still needs the API.
+## What you should not remove
+
+| Code | If you remove it |
+| --- | --- |
+| Reading `index.html` for `src` / `href` | Offline page is blank / has no CSS. |
+| `PRECACHED_API` / `/todos` | List page shows **error...** after the first visit goes offline. |
+| `save` rewriting CORS / `Vary` | JS or CSS may not run from cache. |
+| `MATCH` (`ignoreVary`) | Cache lookups miss. |
+| `skipWaiting` + `clients.claim` | The tab keeps the old worker until you close it. |
+| Navigation → `/index.html` | `/todo/list` has nothing to fall back to. |
 
 ## How to see it in the browser
 
-1. Open the preview site, usually `http://localhost:4173/todo`.
-2. DevTools → **Application** → **Service Workers**. You should see `/sw.js` activated.
+1. Open `http://localhost:4173/todo` (preview, after `npm run build`).
+2. DevTools → **Application** → **Service Workers**. `/sw.js` should be activated.
 3. **Cache Storage** should show `react-todo-static-v3` and `react-todo-api-v3`.
-4. Open the static cache. You should see `index.html`, the `.js` file, and the `.css` file.
-5. Open the API cache. You should see `http://localhost:4000/todos`.
-6. Reload once **online** after any worker change, then switch on offline and reload.
+4. Static cache should include `index.html`, the hashed `.js`, and the hashed `.css` (same names as in `dist/index.html`).
+5. API cache should include `http://localhost:4000/todos`.
+6. Reload once **online** after any worker change, then go offline and reload.
 
 If an old worker will not go away: Application → Service Workers → **Unregister**, then reload online once.
 
 ## How to update the worker
-
-Change `public/sw.js`, then:
 
 ```bash
 cd react_todo
@@ -129,11 +303,11 @@ npm run build
 npm run preview
 ```
 
-`build` copies the new `sw.js` into `dist`. Preview will not see edits that exist only in `public/` until you build again.
+Preview serves `dist/`. Edits in `public/sw.js` are invisible until you build (or copy the file into `dist/`).
 
-Then reload the site once while online.
+Then reload once while online.
 
-When the saved files themselves must be thrown away (you changed what is cached, or old CSS/JS is stuck), bump both names:
+When old CSS/JS is stuck, bump both names:
 
 ```js
 const STATIC_CACHE = "react-todo-static-v4";
@@ -144,38 +318,37 @@ Activate deletes every cache that is not these two names.
 
 ## How to cache something new
 
-**Another API list, for example `/health`:**
+**Another API path, for example `/health`:**
 
 ```js
 const PRECACHED_API = ["/todos", "/health"];
 ```
 
-Any other `GET` to `http://localhost:4000` is also saved the first time the page calls it while online, because the fetch handler uses network-first for that host.
+Any other `GET` to `http://localhost:4000` is also saved the first time the page calls it **while the worker is in control**.
 
-**A new icon or file in `public/`:**
-
-Add its URL to `APP_SHELL_FILES`:
+**A new file in `public/`** (name does not change):
 
 ```js
 const APP_SHELL_FILES = ["/", "/index.html", "/favicon.svg", "/icons.svg", "/logo.svg"];
 ```
 
-**A CSS or image imported from React (`src/style.css`, `src/assets/images.jpeg`):**
+**A CSS or image imported from React** (`src/style.css`, `src/assets/images.jpeg`):
 
-Do not put the source path in the worker. Vite renames those files during build. After `npm run build`, look at `dist/index.html`. Every `src` and `href` there is picked up automatically on the next install. Files that are only mentioned inside the JS bundle are saved the first time the page requests them online.
+Do not put the source path in the worker. After `npm run build`, look at `dist/index.html`. Links there are picked up by the HTML-parsing step. Files only mentioned inside the JS bundle are saved the first time the page requests them with the worker in control. Reload once online after adding them.
 
-**A different API host or port:**
+**A different API host:**
 
 ```js
 const API_ORIGIN = "http://localhost:4000";
 ```
 
-Change this if the API moves. Requests to other websites are ignored and go to the network as usual.
+Requests to other websites are ignored.
 
-## A short checklist when offline looks empty
+## Checklist when offline looks empty
 
-- You opened the **preview** URL (`4173`), not the Vite dev URL (`5173`).
-- You reloaded **once online** after the last edit to `sw.js`.
-- Cache Storage shows the `v3` names, not an older `v1` or `v2`.
-- The static cache contains the `.css` and `.js` names from `dist/index.html`.
-- The API was running at least once while online, so `/todos` could be saved.
+- Preview URL (`4173`), not Vite dev (`5173`).
+- Reloaded **once online** after the last `sw.js` edit.
+- Cache names are `v3`, not `v1` / `v2`.
+- Static cache has the **hashed** `.js` and `.css` from `dist/index.html`, not `/style.css`.
+- API was running at least once while online, so `/todos` could be saved.
+- Image imported from JS: visit the page once online **after** the worker is active, then go offline.
