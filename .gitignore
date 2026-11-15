@@ -2,6 +2,7 @@
 node_modules/
 express_app/node_modules/
 react_todo/node_modules/
+react-hooks/node_modules/
 
 # Build output
 dist/
